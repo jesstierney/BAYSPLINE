@@ -43,13 +43,15 @@ N=500;
 burnin=250;
 
 %set priors. Use prahl conversion to target mean and std
-pm=median((uk-.039)./.034);
+%pm=median((uk-.039)./.034);
+pm=(uk-.039)./.034;
+%vectorize priors
+%prior_mean=pm*ones(N_Ts,1);
+prior_mean=pm;
+prior_var=pstd^2*ones(N_Ts,1);
 %save priors to output
 output.prior_mean=pm;
 output.prior_std=pstd;
-%vectorize priors
-prior_mean=output.prior_mean*ones(N_Ts,1);
-prior_var=(output.prior_std)^2*ones(N_Ts,1);
 
 %set an initial SST value
 init=pm;
@@ -62,12 +64,13 @@ order=3;%spline order, 3 for quadratic
 kn = augknt(knots,order); %knots
 
 %assign width of jumping distribution
-if pm<20
+pmm=median(pm);
+if pmm<20
     JW=3.5;
-    elseif pm>=20 && pm <= 23.7
+    elseif pmm>=20 && pmm <= 23.7
         JW=3.7;
     else
-        JW=pm*0.8092-15.1405;
+        JW=pmm*0.8092-15.1405;
 end
 output.jump_dist=JW;
 %% MH loop
