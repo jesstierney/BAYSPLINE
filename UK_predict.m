@@ -1,4 +1,4 @@
-function output=Predict_Uk(age,uk,pstd)
+function output=UK_predict(uk,pstd)
 %
 %BAYSPLINE: a Bayesian b-spline calibration for the alkenone
 %paleothermometer. Predicts values of SST from measurements of uk37'.
@@ -41,17 +41,17 @@ function output=Predict_Uk(age,uk,pstd)
 %
 %For a full explanation of the approach see Tierney & Tingley (2018).
 %% load model parameters
-load bayes_posterior_v2.mat;
+bayes=load('bayes_posterior_v2.mat');
 
 %thin the posterior draws a bit
-b_draws_final=b_draws_final(1:3:end,:);
-tau2_draws_final=tau2_draws_final(1:3:end);
+bdraws=bayes.bdraws(1:3:end,:);
+tau2=bayes.tau2(1:3:end);
 
 %confirm UK obs are column vector
 uk=uk(:);
 
 N_Ts=length(uk);
-N_p=length(tau2_draws_final);
+N_p=length(tau2);
 %number of samples
 N=500;
 %burnin to discard
@@ -74,7 +74,7 @@ accepts_t=NaN(N_Ts,N_p,N-burnin);
 
 %make a spline with set knots
 order=3; %spline order
-kn = augknt(knots,order); %knots
+kn = augknt(bayes.knots,order); %knots
 
 %assign width of jumping distribution based on average UK temp to obtain
 %40-50% accept rate
@@ -92,8 +92,8 @@ tic
 parfor jj=1:N_p
     accepts = NaN(N_Ts,N);
     samps = NaN(N_Ts,N);
-    b_now=b_draws_final(jj,:);
-    tau_now=tau2_draws_final(jj);
+    b_now=bdraws(jj,:);
+    tau_now=tau2(jj);
     %use spmak to put together the b-spline
     bs_b=spmak(kn,b_now);
     %extrapolate function
@@ -148,36 +148,36 @@ MH_c=reshape(MH_samps_t,N_Ts,N_p*(N-burnin));
 %calculate acceptance
 output.accepts = nansum(accepts_t(:))./(N_Ts*N_p*(N-burnin));
 
+%save subsample of ensemble
+output.ens=MH_c(:,1:50:end);
 %sort and assign to output
 MH_s=sort(MH_c,2);
-pers5=round([.05 .16 .5 .84 .95].*size(MH_c,2));
-output.SST=MH_s(:,pers5);
+pers3=round([.025 .50 .975].*size(MH_c,2));
+output.SST=MH_s(:,pers3);
 %%
-%take a subsample of MH to work with for ksdensity.
-MH_sub=MH_c(:,1:50:end);
-output.ens=MH_sub;
 %plot prior vs post
 f1=figure(1); clf;
 
 set(f1,'pos',[50 700 400 400]);
 xt=[0:.1:40]';
 prior=normpdf(xt,prior_mean(1),sqrt(prior_var(1)));
-post=ksdensity(MH_sub(:),xt);
+post=ksdensity(output.ens(:),xt);
 pr=plot(xt,prior,'k--'); hold on;
 pt=plot(xt,post,'b-');
 legend([pr pt],'Prior','Posterior');
 legend('boxoff');
 
 %%
-%plot timeseries with 1-sigma errors
+%plot timeseries with 95% CI
 f2=figure(2); clf;
 set(f2,'pos',[550 700 500 400]);
- plot(age,output.SST(:,3),'color','k','linewidth',2);
+ plot(output.SST(:,2),'color','k','linewidth',2);
  hold on;
- plot(age,output.SST(:,2),'color',[.4 .4 .4],'linewidth',1,'linestyle','--');
+ plot(output.SST(:,3),'color',[.6 .6 .6],'linewidth',1);
   hold on;
- plot(age,output.SST(:,4),'color',[.4 .4 .4],'linewidth',1,'linestyle','--');
- set(gca,'xlim',[min(age) max(age)]);
+ plot(output.SST(:,1),'color',[.6 .6 .6],'linewidth',1);
+ 
+%% subfunction: ChainConvergence utility
 function [Rhat, Neff]=ChainConvergence(chains, M)
 %
 % function [Rhat, Neff]=ChainConvergence(chains, M)
@@ -190,29 +190,30 @@ function [Rhat, Neff]=ChainConvergence(chains, M)
 % chains. 
 %
 
-
-if ismember(M, size(chains))==0
-    disp('Error: Second input must be the number of chains, so one of the dimensions of the first input.')
-    return
-elseif length(chains(:,1))==M
-    chains=chains';
-end
+    if ismember(M, size(chains))==0
+        disp('Error: Second input must be the number of chains, so one of the dimensions of the first input.')
+        return
+    elseif length(chains(:,1))==M
+        chains=chains';
+    end
 
 % each column is a chain. 
-N=length(chains(:,1));
+Nc=length(chains(:,1));
 
 %quantities from Gelman:
 
 psi_bar_dot_j = mean(chains);
 psi_bar_dot_dot=mean(psi_bar_dot_j);
 
-B= (N/(M-1))*sum((psi_bar_dot_j-psi_bar_dot_dot).^2);
+Bp = (Nc/(M-1))*sum((psi_bar_dot_j-psi_bar_dot_dot).^2);
 
-s2_j= (1/(N-1))*sum((chains-kron(psi_bar_dot_j, ones(N,1))).^2);
+s2_j= (1/(Nc-1))*sum((chains-kron(psi_bar_dot_j, ones(Nc,1))).^2);
 
 W=(1/M)*sum(s2_j);
 
-var_hat_pos=((N-1)/N)*W + (1/N)*B;
+var_hat_pos=((Nc-1)/Nc)*W + (1/Nc)*Bp;
 
 Rhat=sqrt(var_hat_pos/W);
-Neff=M*N*min(var_hat_pos/B, 1);
+Neff=M*Nc*min(var_hat_pos/Bp, 1);
+end
+end
