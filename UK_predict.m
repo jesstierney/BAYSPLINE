@@ -1,51 +1,66 @@
-function output=UK_predict(uk,pstd)
+function output=UK_predict(uk,pstd,bayes)
+% function output=UK_predict(uk,pstd,bayes)
 %
-%BAYSPLINE: a Bayesian b-spline calibration for the alkenone
-%paleothermometer. Predicts values of SST from measurements of uk37'.
-%Please cite the source publication when using this calibration:
+% Models SSTs from UK'37 using the BAYSPLINE calibration.
+% Please cite the source publication when using this calibration:
 %
-%Tierney, JE and Tingley, MP (2018). BAYSPLINE: A new calibration for the
-%alkenone paleothermometer. Paleoceanography and Paleoclimatology, 33. https://doi.org/10.1002/2017PA003201
+% Tierney, JE and Tingley, MP (2018). BAYSPLINE: A new calibration for the
+% alkenone paleothermometer. Paleoceanography and Paleoclimatology, 33.
+% https://doi.org/10.1002/2017PA003201
 %
-%INPUTS:
-%age = vector of depth or age values of length N
-%uk = uk37' values of length N
-%pstd = prior standard deviation (scalar). Recommended value: 10. This 
-%conservative value that works for most applications.
-%At high UK, a more restrictive value of 5 may be desirable to
-%assign a low probability to SSTs > 35C (Unlikely given that UK approaches 1 near this value). 
+% ----- Inputs -----
+% uk = uk37' values of length N
+%
+% pstd = prior standard deviation (scalar). Recommended value: 10. This 
+% conservative value that works for most applications.
+% At high UK, a more restrictive value of 5 may be desirable to
+% assign a low probability to SSTs > 35C (Unlikely given that UK approaches
+% 1 near 30C).
+%
+% bayes: (optional - mainly for use with the DASH interface) A Bayesian
+% posterior to use for the calibration. if empty, use the default posterior
+% file.
+%
+% ----- Output -----
+% output: a structure containing the following:
+% output.prior_mean = Prior mean value, taken from the UK timeseries
+% converted to SST with the Prahl '88 culture equation.
+%
+% output.prior_std = Prior standard deviation (user set).
+%
+% output.jump_dist = standard deviation of the jumping distribution.
+% Values are chosen to achieve a acceptance rate of ca. 0.44
+% (Gelman, 2003).
+%
+% output.rhat = Rhat statistic to assess convergence. Should be close to 1.
+%
+% output.SST = 3 x N vector of inferred SSTs, includes 2.5% level, 50% 
+% level (median values), and 97.5% level.
+%
+% output.ens = full ensemble (N = 2500) of posterior SSTs.
+%
+% ----- Plots -----
+% This program generates a couple of sanity check plots:
+% 1) Prior distribution vs posterior distribution. Prior should be wider
+% unless a strong control is warranted.
+%
+% 2) Time series converted to SST values, with 1-sigma confidence intervals.
+%
+% For a full explanation of the approach see Tierney & Tingley (2018).
 
-%OUTPUTS:
-%output.prior_mean = Prior mean value, taken from the UK timeseries
-%converted to SST with the Prahl '88 culture equation.
-%
-%output.prior_std = Prior standard deviation (user set).
-%
-%output.jump_dist = standard deviation of the jumping distribution.
-%Values are chosen to achieve a acceptance rate of ca. 0.44
-%(Gelman, 2003).
-%
-%output.rhat = Rhat statistic to assess convergence. Should be close to 1.
-%
-%output.SST = 5 x N vector of inferred SSTs, includes 5% level (lower 2sigma), 16% level
-%(lower 1sigma), 50% level (median values), 84% level (upper 1sigma), and
-%95% level (upper 2 sigma).
-%
-%output.ens = full ensemble (N = 2500) of posterior SSTs.
-%
-%PLOTS:
-%1) Prior distribution vs posterior distribution. Prior should be wider
-%unless a strong control is warranted.
-%
-%2) Time series converted to SST values, with 1-sigma confidence intervals.
-%
-%For a full explanation of the approach see Tierney & Tingley (2018).
 %% load model parameters
-bayes=load('bayes_posterior_v2.mat');
+% process optional call to a different posterior file
+% load posteriors for B coefficients and tau^2 variance
+ng=nargin;
+if ng == 3
+    bayesParams=load(bayes);
+else
+    bayesParams=load('bayes_posterior_v2.mat');
+end
 
 %thin the posterior draws a bit
-bdraws=bayes.bdraws(1:3:end,:);
-tau2=bayes.tau2(1:3:end);
+bdraws=bayesParams.bdraws(1:3:end,:);
+tau2=bayesParams.tau2(1:3:end);
 
 %confirm UK obs are column vector
 uk=uk(:);
@@ -74,7 +89,7 @@ accepts_t=NaN(N_Ts,N_p,N-burnin);
 
 %make a spline with set knots
 order=3; %spline order
-kn = augknt(bayes.knots,order); %knots
+kn = augknt(bayesParams.knots,order); %knots
 
 %assign width of jumping distribution based on average UK temp to obtain
 %40-50% accept rate
@@ -184,7 +199,7 @@ function [Rhat, Neff]=ChainConvergence(chains, M)
 % 
 % calculate the R-hat statistic for
 % monitoring  convergence of multiple parallel MCMC runs. Also outputs
-% n_eff.. 
+% n_eff. 
 % chains: a matrix of MCMC chains, each of the same length. 
 % M: the number of different chains - must be one of the dimensions of
 % chains. 
