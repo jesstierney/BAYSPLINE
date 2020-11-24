@@ -37,7 +37,7 @@ function output=UK_predict(uk,pstd,bayes)
 % output.SST = 3 x N vector of inferred SSTs, includes 2.5% level, 50% 
 % level (median values), and 97.5% level.
 %
-% output.ens = full ensemble (N = 2500) of posterior SSTs.
+% output.ens = full ensemble (N = 1000) of posterior SSTs.
 %
 % ----- Plots -----
 % This program generates a couple of sanity check plots:
@@ -59,8 +59,8 @@ else
 end
 
 %thin the posterior draws a bit
-bdraws=bayesParams.bdraws(1:3:end,:);
-tau2=bayesParams.tau2(1:3:end);
+bdraws=bayesParams.bdraws(1:2:end,:);
+tau2=bayesParams.tau2(1:2:end);
 
 %confirm UK obs are column vector
 uk=uk(:);
@@ -164,7 +164,7 @@ MH_c=reshape(MH_samps_t,N_Ts,N_p*(N-burnin));
 output.accepts = nansum(accepts_t(:))./(N_Ts*N_p*(N-burnin));
 
 %save subsample of ensemble
-output.ens=MH_c(:,1:50:end);
+output.ens=MH_c(:,1:125:end);
 %sort and assign to output
 MH_s=sort(MH_c,2);
 pers3=round([.025 .50 .975].*size(MH_c,2));

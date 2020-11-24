@@ -13,7 +13,7 @@ function [uk] = UK_forward(ssts, bayes)
 %
 % ----- Outputs -----
 %
-% uk: A set of 1500 uk'37 estimates for each SST. (N x 1500)
+% uk: A set of 1000 uk'37 estimates for each SST. (N x 1000)
 
 % Convert ssts to column vector.
 ssts=ssts(:);
@@ -31,7 +31,7 @@ end
 %following polygons then you should provide seasonal SSTs:
 
 %set up spline parameters with set knots
-order=3;%spline order, 3 for quadratic
+order = 3;%spline order, 3 for quadratic
 kn = augknt(bayesParams.knots,order); %knots
 
 %spmak assembles the b-spline with the given knots and current coeffs
@@ -43,11 +43,8 @@ bs_b=spmak(kn,bayesParams.bdraws);
 bs=fnxtr(bs_b);
 %evaluate the mean value of the spline for your SST obs:
 mean_now=fnval(bs,ssts);
+
 %draw from the distribution:
-
-% Facilitates comparison of different methods.
-rng('default');
-
 uk=normrnd(mean_now,repmat(sqrt(bayesParams.tau2),1,length(ssts)))';
 %any uk values outside 0 to 1 are forced to be in that range.
 uk(uk>1)=1;
