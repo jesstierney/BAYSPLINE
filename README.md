@@ -1,6 +1,6 @@
 # BAYSPLINE
 
-BAYSPLINE is a Bayesian calibration for the alkenone paleothermometer. It uses basis splines to fit the subtle, but significant, loss of sensitivity of the UK'37 index to temperature at high SSTs. When using this model, please cite:
+BAYSPLINE is a Bayesian calibration for the alkenone paleothermometer. It uses basis splines to fit the subtle, but significant, loss of sensitivity of the U<sup>K'</sup><sub>37</sub> index to temperature at high SSTs. When using this model, please cite:
 
 Tierney, J.E. & Tingley, M.P. (2018) BAYSPLINE: A New Calibration for the Alkenone Paleothermometer. Paleoceanography and Paleoclimatology 33, 281-301, [http://doi.org/10.1002/2017PA003201]. 
 
